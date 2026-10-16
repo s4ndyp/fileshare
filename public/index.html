@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fileshare</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon" aria-hidden="true">⇄</span>
+        <div>
+          <h1>Fileshare</h1>
+          <p class="subtitle">Bestanden en tekst delen tussen je apparaten</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="refreshBtn" title="Ververs lijsten">
+        Ververs
+      </button>
+    </header>
+
+    <main class="layout">
+      <section class="card" aria-labelledby="upload-heading">
+        <h2 id="upload-heading">Bestanden uploaden</h2>
+        <form id="uploadForm">
+          <label class="dropzone" id="dropzone" for="fileInput">
+            <input
+              type="file"
+              id="fileInput"
+              name="files"
+              multiple
+              hidden
+            />
+            <span class="dropzone-icon" aria-hidden="true">↑</span>
+            <span class="dropzone-text">Sleep bestanden hierheen of klik om te kiezen</span>
+            <span class="dropzone-hint" id="selectedHint">Geen bestanden geselecteerd</span>
+          </label>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="deleteAfterDownload" />
+            <span>Verwijder bestanden na download</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+            Uploaden
+          </button>
+        </form>
+        <p class="toast" id="uploadToast" role="status" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="files-heading">
+        <div class="card-head">
+          <h2 id="files-heading">Gedeelde bestanden</h2>
+          <span class="badge" id="filesCount">0</span>
+        </div>
+        <ul class="item-list" id="filesList"></ul>
+        <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
+      </section>
+
+      <section class="card card-wide" aria-labelledby="text-heading">
+        <h2 id="text-heading">Tekst &amp; snippets</h2>
+        <p class="hint">Wachtwoorden, sleutels of code — één regel per opslaan.</p>
+        <form id="textForm" class="text-form">
+          <textarea
+            id="textInput"
+            rows="3"
+            placeholder="Plak tekst of een snippet…"
+            spellcheck="false"
+          ></textarea>
+          <button type="submit" class="btn btn-primary">Opslaan</button>
+        </form>
+        <ul class="item-list text-list" id="textsList"></ul>
+        <p class="empty" id="textsEmpty">Nog geen opgeslagen tekst.</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Data blijft op deze server staan tot je ze verwijdert of na download (indien gekozen).</span>
+    </footer>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+services:
+  fileshare:
+    build: .
+    image: fileshare:latest
+    container_name: fileshare
+    restart: unless-stopped
+    ports:
+      - "${FILESHARE_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      DATA_DIR: /data
+      MAX_FILE_SIZE: "${MAX_FILE_SIZE:-536870912}"
+    volumes:
+      - fileshare_data:/data
+
+volumes:
+  fileshare_data:
