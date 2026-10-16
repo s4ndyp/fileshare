@@ -71,6 +71,16 @@ dropzone.addEventListener('drop', (e) => {
   updateFileSelection();
 });
 
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+
 async function loadFiles() {
   const res = await fetch('/api/files');
   const files = await res.json();
@@ -123,12 +133,6 @@ async function loadTexts() {
     `;
     textsList.appendChild(li);
   }
-}
-
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
 }
 
 uploadForm.addEventListener('submit', async (e) => {
