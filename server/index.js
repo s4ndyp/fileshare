@@ -5,6 +5,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { initDb } from './db.js';
+import { createZip, zipNameFromDate } from './zip.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -64,11 +65,13 @@ app.get('/api/files', (_req, res) => {
   res.json(rows.map(rowToFile));
 });
 
-app.post('/api/files', upload.array('files'), (req, res) => {
-  const deleteAfter =
-    req.body.deleteAfterDownload === 'true' ||
-    req.body.deleteAfterDownload === true ||
-    req.body.deleteAfterDownload === '1';
+function parseBoolField(value) {
+  return value === 'true' || value === true || value === '1';
+}
+
+app.post('/api/files', upload.array('files'), async (req, res) => {
+  const deleteAfter = parseBoolField(req.body.deleteAfterDownload);
+  const saveAsZip = parseBoolField(req.body.saveAsZip);
 
   if (!req.files?.length) {
     return res.status(400).json({ error: 'Geen bestanden ontvangen' });
@@ -79,33 +82,89 @@ app.post('/api/files', upload.array('files'), (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const created = [];
   const now = Date.now();
-  for (const file of req.files) {
-    const id = randomUUID();
-    insert.run(
-      id,
-      file.originalname,
-      file.filename,
-      file.size,
-      file.mimetype || null,
-      deleteAfter ? 1 : 0,
-      now,
-    );
-    created.push(
-      rowToFile({
-        id,
-        original_name: file.originalname,
-        stored_name: file.filename,
-        size: file.size,
-        mime_type: file.mimetype,
-        delete_after_download: deleteAfter ? 1 : 0,
-        created_at: now,
-      }),
-    );
-  }
+  const uploaded = req.files;
 
-  res.status(201).json(created);
+  try {
+    if (saveAsZip && uploaded.length > 1) {
+      const zipOriginalName = zipNameFromDate(new Date(now));
+      const storedName = `${randomUUID()}.zip`;
+      const zipPath = path.join(filesDir, storedName);
+
+      await createZip(
+        uploaded.map((f) => ({ path: f.path, name: f.originalname })),
+        zipPath,
+      );
+
+      for (const file of uploaded) {
+        try {
+          fs.unlinkSync(file.path);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const zipSize = fs.statSync(zipPath).size;
+      const id = randomUUID();
+      insert.run(
+        id,
+        zipOriginalName,
+        storedName,
+        zipSize,
+        'application/zip',
+        deleteAfter ? 1 : 0,
+        now,
+      );
+
+      return res.status(201).json([
+        rowToFile({
+          id,
+          original_name: zipOriginalName,
+          stored_name: storedName,
+          size: zipSize,
+          mime_type: 'application/zip',
+          delete_after_download: deleteAfter ? 1 : 0,
+          created_at: now,
+        }),
+      ]);
+    }
+
+    const created = [];
+    for (const file of uploaded) {
+      const id = randomUUID();
+      insert.run(
+        id,
+        file.originalname,
+        file.filename,
+        file.size,
+        file.mimetype || null,
+        deleteAfter ? 1 : 0,
+        now,
+      );
+      created.push(
+        rowToFile({
+          id,
+          original_name: file.originalname,
+          stored_name: file.filename,
+          size: file.size,
+          mime_type: file.mimetype,
+          delete_after_download: deleteAfter ? 1 : 0,
+          created_at: now,
+        }),
+      );
+    }
+
+    res.status(201).json(created);
+  } catch {
+    for (const file of uploaded) {
+      try {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+    }
+    res.status(500).json({ error: 'Upload of zip maken mislukt' });
+  }
 });
 
 app.get('/api/files/:id/download', (req, res) => {

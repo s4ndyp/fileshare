@@ -179,6 +179,32 @@ body {
   color: var(--text-muted);
 }
 
+.pending-wrap {
+  margin-bottom: 1rem;
+}
+
+.pending-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pending-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pending-item {
+  padding: 0.5rem 0.65rem;
+}
+
+.pending-item:hover {
+  background: var(--bg);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
