@@ -28,23 +28,23 @@ docker compose up -d --build
 
 ## Deploy op Proxmox (LXC + Docker)
 
+Uitrol gebeurt via **[s4ndyp/scripts](https://github.com/s4ndyp/scripts)** (Xdio / `community-scripts`-stijl), niet vanuit deze repo.
+
 Op de **Proxmox host** als root:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/s4ndyp/fileshare/main/scripts/proxmox-fileshare.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/s4ndyp/scripts/main/fileshare/fileshare.sh)"
 ```
 
-Opties (voorbeeld):
+Standaard: **2 CPU**, **2 GB RAM**, **10 GB disk**; de app is bereikbaar op **poort 80** in de LXC (`http://<IP>/`).
+
+**Update** in de container: `update`, of handmatig:
 
 ```bash
-bash scripts/proxmox-fileshare.sh --ctid 120 --ram 1024 --disk 8 --port 3000
+cd /opt/fileshare && git pull --ff-only && docker compose build && docker compose up -d
 ```
 
-Het script:
-
-1. Maakt een Debian 12 LXC aan (unprivileged, nesting voor Docker)
-2. Installeert Docker en Docker Compose
-3. Clonet deze repo naar `/opt/fileshare` en start `docker compose`
+Zie ook [fileshare/README-proxmox-section.md](https://github.com/s4ndyp/scripts/blob/main/fileshare/README-proxmox-section.md) in de scripts-repo.
 
 ### Alleen Docker op bestaande machine/LXC
 
