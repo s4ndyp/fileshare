@@ -46,12 +46,6 @@ cd /opt/fileshare && git pull --ff-only && docker compose build && docker compos
 
 Zie ook [fileshare/README-proxmox-section.md](https://github.com/s4ndyp/scripts/blob/main/fileshare/README-proxmox-section.md) in de scripts-repo.
 
-### Alleen Docker op bestaande machine/LXC
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/s4ndyp/fileshare/main/scripts/install-docker.sh)"
-```
-
 ## Beveiliging
 
 De app heeft **geen ingebouwde login**. Gebruik hem alleen op een vertrouwd netwerk, achter een VPN, of plaats een reverse proxy met authenticatie (bijv. Authelia, NPM + Access List).
