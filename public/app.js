@@ -19,6 +19,9 @@ const selectedHint = document.getElementById('selectedHint');
 const uploadForm = document.getElementById('uploadForm');
 const uploadBtn = document.getElementById('uploadBtn');
 const deleteAfterDownload = document.getElementById('deleteAfterDownload');
+const saveAsZip = document.getElementById('saveAsZip');
+const pendingWrap = document.getElementById('pendingWrap');
+const pendingList = document.getElementById('pendingList');
 const uploadToast = document.getElementById('uploadToast');
 const filesList = document.getElementById('filesList');
 const filesEmpty = document.getElementById('filesEmpty');
@@ -28,6 +31,16 @@ const textInput = document.getElementById('textInput');
 const textsList = document.getElementById('textsList');
 const textsEmpty = document.getElementById('textsEmpty');
 const refreshBtn = document.getElementById('refreshBtn');
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
 
 function showToast(el, message, ok = true) {
   el.textContent = message;
@@ -40,13 +53,32 @@ function showToast(el, message, ok = true) {
 }
 
 function updateFileSelection() {
-  const n = fileInput.files?.length ?? 0;
+  const files = fileInput.files;
+  const n = files?.length ?? 0;
+
   selectedHint.textContent =
     n === 0
       ? 'Geen bestanden geselecteerd'
       : n === 1
-        ? fileInput.files[0].name
+        ? '1 bestand geselecteerd'
         : `${n} bestanden geselecteerd`;
+
+  pendingList.innerHTML = '';
+  pendingWrap.hidden = n === 0;
+
+  for (let i = 0; i < n; i++) {
+    const file = files[i];
+    const li = document.createElement('li');
+    li.className = 'item pending-item';
+    li.innerHTML = `
+      <div class="item-main">
+        <div class="item-name" title="${escapeAttr(file.name)}">${escapeHtml(file.name)}</div>
+        <div class="item-meta">${formatBytes(file.size)}</div>
+      </div>
+    `;
+    pendingList.appendChild(li);
+  }
+
   uploadBtn.disabled = n === 0;
 }
 
@@ -70,16 +102,6 @@ dropzone.addEventListener('drop', (e) => {
   fileInput.files = e.dataTransfer.files;
   updateFileSelection();
 });
-
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-function escapeAttr(s) {
-  return escapeHtml(s).replace(/"/g, '&quot;');
-}
 
 async function loadFiles() {
   const res = await fetch('/api/files');
@@ -142,6 +164,7 @@ uploadForm.addEventListener('submit', async (e) => {
   const fd = new FormData();
   for (const f of fileInput.files) fd.append('files', f);
   fd.append('deleteAfterDownload', deleteAfterDownload.checked ? 'true' : 'false');
+  fd.append('saveAsZip', saveAsZip.checked ? 'true' : 'false');
 
   uploadBtn.disabled = true;
   try {
@@ -150,13 +173,21 @@ uploadForm.addEventListener('submit', async (e) => {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Upload mislukt');
     }
-    showToast(uploadToast, 'Bestanden geüpload', true);
+    const created = await res.json();
+    const zipped =
+      saveAsZip.checked && fileInput.files.length > 1 && created.length === 1;
+    showToast(
+      uploadToast,
+      zipped ? 'Bestanden geüpload als zip' : 'Bestanden geüpload',
+      true,
+    );
     fileInput.value = '';
     updateFileSelection();
     await loadFiles();
   } catch (err) {
     showToast(uploadToast, err.message, false);
-    uploadBtn.disabled = fileInput.files.length === 0;
+  } finally {
+    updateFileSelection();
   }
 });
 

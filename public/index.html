@@ -44,6 +44,16 @@
             <span class="dropzone-hint" id="selectedHint">Geen bestanden geselecteerd</span>
           </label>
 
+          <div class="pending-wrap" id="pendingWrap" hidden>
+            <p class="pending-title">Klaar om te uploaden</p>
+            <ul class="item-list pending-list" id="pendingList"></ul>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="saveAsZip" />
+            <span>Opslaan als zip bij meerdere bestanden</span>
+          </label>
+
           <label class="checkbox-row">
             <input type="checkbox" id="deleteAfterDownload" />
             <span>Verwijder bestanden na download</span>
