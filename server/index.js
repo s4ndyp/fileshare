@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { initDb } from './db.js';
 import { createZip, zipNameFromDate } from './zip.js';
+import { getDiskUsage } from './disk.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -56,6 +57,14 @@ function deleteFileRecord(id) {
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get('/api/storage', (_req, res) => {
+  try {
+    res.json(getDiskUsage(DATA_DIR));
+  } catch {
+    res.status(500).json({ error: 'Schijfruimte niet beschikbaar' });
+  }
 });
 
 app.get('/api/files', (_req, res) => {
