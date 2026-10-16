@@ -15,16 +15,36 @@
   <body>
     <div class="bg-glow" aria-hidden="true"></div>
     <header class="header">
-      <div class="logo">
-        <span class="logo-icon" aria-hidden="true">⇄</span>
-        <div>
-          <h1>Fileshare</h1>
-          <p class="subtitle">Bestanden en tekst delen tussen je apparaten</p>
+      <div class="header-top">
+        <div class="logo">
+          <span class="logo-icon" aria-hidden="true">⇄</span>
+          <div>
+            <h1>Fileshare</h1>
+            <p class="subtitle">Bestanden en tekst delen tussen je apparaten</p>
+          </div>
         </div>
+        <button type="button" class="btn btn-ghost" id="refreshBtn" title="Ververs lijsten">
+          Ververs
+        </button>
       </div>
-      <button type="button" class="btn btn-ghost" id="refreshBtn" title="Ververs lijsten">
-        Ververs
-      </button>
+      <div class="storage-widget" id="storageWidget">
+        <div class="storage-meta">
+          <span class="storage-label">Schijfruimte server</span>
+          <span class="storage-free" id="storageFree">— vrij</span>
+        </div>
+        <div
+          class="storage-track"
+          id="storageTrack"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          aria-label="Schijfgebruik"
+        >
+          <div class="storage-fill" id="storageFill"></div>
+        </div>
+        <span class="storage-pct" id="storagePct">0% gebruikt</span>
+      </div>
     </header>
 
     <main class="layout">

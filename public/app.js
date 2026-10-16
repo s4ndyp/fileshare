@@ -1,9 +1,34 @@
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / k ** i).toFixed(i > 0 ? 1 : 0))} ${sizes[i]}`;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  const value = bytes / k ** i;
+  const decimals = i >= 2 ? 1 : 0;
+  return `${parseFloat(value.toFixed(decimals))} ${sizes[i]}`;
+}
+
+function storageLevel(usedPercent) {
+  if (usedPercent >= 90) return 'level-danger';
+  if (usedPercent >= 75) return 'level-warn';
+  return 'level-ok';
+}
+
+async function loadStorage() {
+  try {
+    const res = await fetch('/api/storage');
+    if (!res.ok) return;
+    const data = await res.json();
+    const pct = data.usedPercent ?? 0;
+
+    storageFill.style.width = `${pct}%`;
+    storageFill.className = `storage-fill ${storageLevel(pct)}`;
+    storageFree.textContent = `${formatBytes(data.freeBytes)} vrij`;
+    storagePct.textContent = `${pct}% gebruikt`;
+    storageTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
+  } catch {
+    storageFree.textContent = 'Onbekend';
+  }
 }
 
 function formatDate(ts) {
@@ -31,6 +56,10 @@ const textInput = document.getElementById('textInput');
 const textsList = document.getElementById('textsList');
 const textsEmpty = document.getElementById('textsEmpty');
 const refreshBtn = document.getElementById('refreshBtn');
+const storageFill = document.getElementById('storageFill');
+const storageFree = document.getElementById('storageFree');
+const storagePct = document.getElementById('storagePct');
+const storageTrack = document.getElementById('storageTrack');
 
 function escapeHtml(s) {
   const d = document.createElement('div');
@@ -183,7 +212,7 @@ uploadForm.addEventListener('submit', async (e) => {
     );
     fileInput.value = '';
     updateFileSelection();
-    await loadFiles();
+    await Promise.all([loadFiles(), loadStorage()]);
   } catch (err) {
     showToast(uploadToast, err.message, false);
   } finally {
@@ -234,12 +263,14 @@ textsList.addEventListener('click', async (e) => {
 });
 
 refreshBtn.addEventListener('click', async () => {
-  await Promise.all([loadFiles(), loadTexts()]);
+  await Promise.all([loadFiles(), loadTexts(), loadStorage()]);
 });
 
 loadFiles();
 loadTexts();
+loadStorage();
 setInterval(() => {
   loadFiles();
   loadTexts();
+  loadStorage();
 }, 15000);
