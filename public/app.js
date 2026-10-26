@@ -73,9 +73,10 @@ function escapeAttr(s) {
 
 /** Werkt ook op http:// (zonder Clipboard API / secure context). */
 async function copyToClipboard(text) {
-  if (navigator.clipboard?.writeText) {
+  const clip = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+  if (clip && typeof clip.writeText === 'function') {
     try {
-      await navigator.clipboard.writeText(text);
+      await clip.writeText(text);
       return true;
     } catch {
       /* fallback */
@@ -279,25 +280,32 @@ filesList.addEventListener('click', async (e) => {
   await loadFiles();
 });
 
-textsList.addEventListener('click', async (e) => {
-  const copyBtn = e.target.closest('[data-copy-text]');
-  if (copyBtn) {
-    const copyId = copyBtn.dataset.copyText;
-    const text = textById.get(copyId) ?? '';
-    const ok = await copyToClipboard(text);
-    copyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
-    setTimeout(() => {
-      copyBtn.textContent = 'Kopieer';
-    }, 1500);
-    return;
-  }
+textsList.addEventListener('click', (e) => {
+  void (async () => {
+    const copyBtn = e.target.closest('[data-copy-text]');
+    if (copyBtn) {
+      const copyId = copyBtn.dataset.copyText;
+      const text = textById.get(copyId) ?? '';
+      let ok = false;
+      try {
+        ok = await copyToClipboard(text);
+      } catch {
+        ok = false;
+      }
+      copyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
+      setTimeout(() => {
+        copyBtn.textContent = 'Kopieer';
+      }, 1500);
+      return;
+    }
 
-  const deleteBtn = e.target.closest('[data-delete-text]');
-  if (!deleteBtn) return;
-  const id = deleteBtn.dataset.deleteText;
-  if (!confirm('Deze tekst verwijderen?')) return;
-  await fetch(`/api/texts/${id}`, { method: 'DELETE' });
-  await loadTexts();
+    const deleteBtn = e.target.closest('[data-delete-text]');
+    if (!deleteBtn) return;
+    const id = deleteBtn.dataset.deleteText;
+    if (!confirm('Deze tekst verwijderen?')) return;
+    await fetch(`/api/texts/${id}`, { method: 'DELETE' });
+    await loadTexts();
+  })();
 });
 
 refreshBtn.addEventListener('click', async () => {
