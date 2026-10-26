@@ -7,7 +7,7 @@ Donker-themed webapp om bestanden en tekst (wachtwoorden, sleutels, snippets) ee
 - Meerdere bestanden uploaden via drag & drop
 - Optioneel: **verwijder na download** (per upload-batch)
 - Overzicht met download- en verwijder-knoppen
-- Aparte lijst voor tekstregels met **kopieer naar klembord** en verwijderen
+- Aparte lijst voor tekstregels met **kopieer naar klembord** (werkt ook op `http://`, zonder HTTPS) en verwijderen
 - Automatisch verversen van de lijsten (elke 15 seconden)
 
 ## Lokaal draaien
