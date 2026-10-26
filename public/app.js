@@ -71,6 +71,42 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
+/** Werkt ook op http:// (zonder Clipboard API / secure context). */
+async function copyToClipboard(text) {
+  const clip = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+  if (clip && typeof clip.writeText === 'function') {
+    try {
+      await clip.writeText(text);
+      return true;
+    } catch {
+      /* fallback */
+    }
+  }
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.width = '1px';
+  ta.style.height = '1px';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 function showToast(el, message, ok = true) {
   el.textContent = message;
   el.hidden = false;
@@ -244,22 +280,32 @@ filesList.addEventListener('click', async (e) => {
   await loadFiles();
 });
 
-textsList.addEventListener('click', async (e) => {
-  const copyId = e.target.dataset?.copyText;
-  if (copyId) {
-    const text = textById.get(copyId) ?? '';
-    await navigator.clipboard.writeText(text);
-    e.target.textContent = 'Gekopieerd!';
-    setTimeout(() => {
-      e.target.textContent = 'Kopieer';
-    }, 1500);
-    return;
-  }
-  const id = e.target.dataset?.deleteText;
-  if (!id) return;
-  if (!confirm('Deze tekst verwijderen?')) return;
-  await fetch(`/api/texts/${id}`, { method: 'DELETE' });
-  await loadTexts();
+textsList.addEventListener('click', (e) => {
+  void (async () => {
+    const copyBtn = e.target.closest('[data-copy-text]');
+    if (copyBtn) {
+      const copyId = copyBtn.dataset.copyText;
+      const text = textById.get(copyId) ?? '';
+      let ok = false;
+      try {
+        ok = await copyToClipboard(text);
+      } catch {
+        ok = false;
+      }
+      copyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
+      setTimeout(() => {
+        copyBtn.textContent = 'Kopieer';
+      }, 1500);
+      return;
+    }
+
+    const deleteBtn = e.target.closest('[data-delete-text]');
+    if (!deleteBtn) return;
+    const id = deleteBtn.dataset.deleteText;
+    if (!confirm('Deze tekst verwijderen?')) return;
+    await fetch(`/api/texts/${id}`, { method: 'DELETE' });
+    await loadTexts();
+  })();
 });
 
 refreshBtn.addEventListener('click', async () => {
