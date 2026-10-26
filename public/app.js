@@ -71,6 +71,41 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
+/** Werkt ook op http:// (zonder Clipboard API / secure context). */
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* fallback */
+    }
+  }
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.width = '1px';
+  ta.style.height = '1px';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 function showToast(el, message, ok = true) {
   el.textContent = message;
   el.hidden = false;
@@ -245,18 +280,21 @@ filesList.addEventListener('click', async (e) => {
 });
 
 textsList.addEventListener('click', async (e) => {
-  const copyId = e.target.dataset?.copyText;
-  if (copyId) {
+  const copyBtn = e.target.closest('[data-copy-text]');
+  if (copyBtn) {
+    const copyId = copyBtn.dataset.copyText;
     const text = textById.get(copyId) ?? '';
-    await navigator.clipboard.writeText(text);
-    e.target.textContent = 'Gekopieerd!';
+    const ok = await copyToClipboard(text);
+    copyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
     setTimeout(() => {
-      e.target.textContent = 'Kopieer';
+      copyBtn.textContent = 'Kopieer';
     }, 1500);
     return;
   }
-  const id = e.target.dataset?.deleteText;
-  if (!id) return;
+
+  const deleteBtn = e.target.closest('[data-delete-text]');
+  if (!deleteBtn) return;
+  const id = deleteBtn.dataset.deleteText;
   if (!confirm('Deze tekst verwijderen?')) return;
   await fetch(`/api/texts/${id}`, { method: 'DELETE' });
   await loadTexts();
