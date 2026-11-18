@@ -68,3 +68,5 @@ De app heeft **geen ingebouwde login**. Gebruik hem alleen op een vertrouwd netw
 | `PORT`         | `3000`    | Poort in de container     |
 | `DATA_DIR`     | `/data`   | Uploads + SQLite database |
 | `MAX_FILE_SIZE`| 512 MiB   | Max. bestandsgrootte      |
+
+<!-- runner-benchmark: 2026-11-18 -->
