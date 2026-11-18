@@ -3,15 +3,30 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { initDb } from './db.js';
 import { createZip, zipNameFromDate } from './zip.js';
 import { getDiskUsage } from './disk.js';
 
+// sharp is optioneel: zonder de native module blijven thumbnails uit en toont de UI een icoon.
+let sharp = null;
+try {
+  sharp = (await import('sharp')).default;
+} catch {
+  console.warn('sharp niet beschikbaar — thumbnails van afbeeldingen uit');
+}
+
+const execFileAsync = promisify(execFile);
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE) || 512 * 1024 * 1024;
+
+const THUMB_DIR = path.join(DATA_DIR, 'thumbs');
+const THUMB_SIZE = 240;
 
 const { db, filesDir } = initDb(DATA_DIR);
 
@@ -42,6 +57,103 @@ function rowToFile(row) {
   };
 }
 
+const IMAGE_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.bmp',
+  '.tif',
+  '.tiff',
+  '.heic',
+  '.heif',
+]);
+
+function isImageFile(row) {
+  if ((row.mime_type || '').startsWith('image/')) return true;
+  return IMAGE_EXTENSIONS.has(path.extname(row.original_name || '').toLowerCase());
+}
+
+function isPdfFile(row) {
+  if ((row.mime_type || '') === 'application/pdf') return true;
+  return path.extname(row.original_name || '').toLowerCase() === '.pdf';
+}
+
+function thumbnailPath(id) {
+  return path.join(THUMB_DIR, `${id}.jpg`);
+}
+
+function removeThumbnail(id) {
+  try {
+    const p = thumbnailPath(id);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Maakt (eenmalig) een vierkante JPEG-thumbnail van een afbeelding of de eerste
+ * pagina van een pdf. Resultaat wordt gecachet in DATA_DIR/thumbs.
+ * Geeft null terug als er geen voorvertoning mogelijk is.
+ */
+async function ensureThumbnail(row) {
+  if (!sharp) return null;
+  const cached = thumbnailPath(row.id);
+  if (fs.existsSync(cached)) return cached;
+
+  const source = path.join(filesDir, row.stored_name);
+  if (!fs.existsSync(source)) return null;
+
+  fs.mkdirSync(THUMB_DIR, { recursive: true });
+
+  try {
+    if (isImageFile(row)) {
+      await sharp(source, { failOn: 'none', animated: false })
+        .rotate()
+        .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', position: 'centre' })
+        .jpeg({ quality: 72, mozjpeg: true })
+        .toFile(cached);
+      return cached;
+    }
+
+    if (isPdfFile(row)) {
+      // pdftoppm (poppler-utils) rendert pagina 1; ontbreekt het binary, dan geen thumbnail.
+      const prefix = path.join(THUMB_DIR, `${row.id}-page`);
+      await execFileAsync(
+        'pdftoppm',
+        ['-jpeg', '-f', '1', '-l', '1', '-scale-to', String(THUMB_SIZE * 2), source, prefix],
+        { timeout: 20000 },
+      );
+      const rendered = fs
+        .readdirSync(THUMB_DIR)
+        .find((f) => f.startsWith(`${row.id}-page`) && f.endsWith('.jpg'));
+      if (!rendered) return null;
+
+      const renderedPath = path.join(THUMB_DIR, rendered);
+      try {
+        await sharp(renderedPath, { failOn: 'none' })
+          .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', position: 'top' })
+          .jpeg({ quality: 72, mozjpeg: true })
+          .toFile(cached);
+      } finally {
+        try {
+          fs.unlinkSync(renderedPath);
+        } catch {
+          /* ignore */
+        }
+      }
+      return cached;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function deleteFileRecord(id) {
   const row = db.prepare('SELECT * FROM files WHERE id = ?').get(id);
   if (!row) return false;
@@ -51,6 +163,7 @@ function deleteFileRecord(id) {
   } catch {
     /* ignore */
   }
+  removeThumbnail(row.id);
   db.prepare('DELETE FROM files WHERE id = ?').run(id);
   return true;
 }
@@ -174,6 +287,21 @@ app.post('/api/files', upload.array('files'), async (req, res) => {
     }
     res.status(500).json({ error: 'Upload of zip maken mislukt' });
   }
+});
+
+app.get('/api/files/:id/thumbnail', async (req, res) => {
+  const row = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  if (!row) {
+    return res.status(404).json({ error: 'Bestand niet gevonden' });
+  }
+
+  const thumb = await ensureThumbnail(row);
+  if (!thumb) {
+    return res.status(404).json({ error: 'Geen voorvertoning beschikbaar' });
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(thumb);
 });
 
 app.get('/api/files/:id/download', (req, res) => {

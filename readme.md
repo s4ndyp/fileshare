@@ -7,8 +7,17 @@ Donker-themed webapp om bestanden en tekst (wachtwoorden, sleutels, snippets) ee
 - Meerdere bestanden uploaden via drag & drop
 - Optioneel: **verwijder na download** (per upload-batch)
 - Overzicht met download- en verwijder-knoppen
+- **Twee weergaven voor de bestandenlijst**: *lijst* (met thumbnail per bestand) en *kalender* (maandoverzicht met gemarkeerde uploaddagen; klik op een dag voor de bestanden van die dag)
+- Thumbnails van afbeeldingen en van de eerste pagina van pdf's (server-side, gecachet in `DATA_DIR/thumbs`)
 - Aparte lijst voor tekstregels met **kopieer naar klembord** (werkt ook op `http://`, zonder HTTPS) en verwijderen
 - Automatisch verversen van de lijsten (elke 15 seconden)
+
+## Testen
+
+```bash
+npm install
+npm test        # headless interactietest (jsdom) van lijst-/kalenderweergave
+```
 
 ## Lokaal draaien
 

@@ -51,6 +51,17 @@ const uploadToast = document.getElementById('uploadToast');
 const filesList = document.getElementById('filesList');
 const filesEmpty = document.getElementById('filesEmpty');
 const filesCount = document.getElementById('filesCount');
+const listView = document.getElementById('listView');
+const calendarView = document.getElementById('calendarView');
+const viewListBtn = document.getElementById('viewListBtn');
+const viewCalBtn = document.getElementById('viewCalBtn');
+const calTitle = document.getElementById('calTitle');
+const calGrid = document.getElementById('calGrid');
+const calPrev = document.getElementById('calPrev');
+const calNext = document.getElementById('calNext');
+const calDayTitle = document.getElementById('calDayTitle');
+const dayFilesList = document.getElementById('dayFilesList');
+const dayFilesEmpty = document.getElementById('dayFilesEmpty');
 const textForm = document.getElementById('textForm');
 const textInput = document.getElementById('textInput');
 const textsList = document.getElementById('textsList');
@@ -168,17 +179,95 @@ dropzone.addEventListener('drop', (e) => {
   updateFileSelection();
 });
 
-async function loadFiles() {
-  const res = await fetch('/api/files');
-  const files = await res.json();
-  filesList.innerHTML = '';
-  filesCount.textContent = String(files.length);
-  filesEmpty.classList.toggle('hidden', files.length > 0);
+/* ---------- gedeelde bestanden: lijst- en kalenderweergave ---------- */
 
-  for (const file of files) {
-    const li = document.createElement('li');
-    li.className = 'item';
-    li.innerHTML = `
+const NL_MONTHS = [
+  'januari',
+  'februari',
+  'maart',
+  'april',
+  'mei',
+  'juni',
+  'juli',
+  'augustus',
+  'september',
+  'oktober',
+  'november',
+  'december',
+];
+
+const PREVIEW_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.bmp',
+  '.tif',
+  '.tiff',
+  '.svg',
+  '.pdf',
+]);
+
+let allFiles = [];
+let viewMode = 'list';
+let selectedDay = null;
+let calCursor = null;
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+/** Lokale kalenderdag (YYYY-MM-DD) van een timestamp. */
+function localDayKey(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function todayKey() {
+  return localDayKey(Date.now());
+}
+
+function dayTitle(key) {
+  const s = new Date(`${key}T12:00:00`).toLocaleDateString('nl-NL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function fileExtLabel(file) {
+  const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+  return m ? m[1].toUpperCase().slice(0, 4) : 'FILE';
+}
+
+function hasPreview(file) {
+  const mime = file.mimeType || '';
+  if (mime.startsWith('image/') || mime === 'application/pdf') return true;
+  const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+  return m ? PREVIEW_EXTENSIONS.has(`.${m[1].toLowerCase()}`) : false;
+}
+
+/** Thumbnail met de bestandsextensie als terugvaloptie (als er geen preview is). */
+function thumbHtml(file) {
+  const label = escapeHtml(fileExtLabel(file));
+  if (!hasPreview(file)) {
+    return `<div class="item-thumb" aria-hidden="true"><span class="thumb-label">${label}</span></div>`;
+  }
+  return `
+    <div class="item-thumb">
+      <span class="thumb-label">${label}</span>
+      <img class="thumb-img" src="/api/files/${file.id}/thumbnail" alt="" loading="lazy" decoding="async" onerror="this.remove()" />
+    </div>`;
+}
+
+function fileItemHtml(file) {
+  return `
+    <li class="item">
+      ${thumbHtml(file)}
       <div class="item-main">
         <div class="item-name" title="${escapeAttr(file.name)}">${escapeHtml(file.name)}</div>
         <div class="item-meta">
@@ -190,10 +279,129 @@ async function loadFiles() {
         <a class="btn btn-sm btn-outline" href="/api/files/${file.id}/download" download>Download</a>
         <button type="button" class="btn btn-sm btn-danger" data-delete-file="${file.id}">Verwijder</button>
       </div>
-    `;
-    filesList.appendChild(li);
-  }
+    </li>`;
 }
+
+function renderFileList(listEl, emptyEl, files) {
+  listEl.innerHTML = files.map(fileItemHtml).join('');
+  if (emptyEl) emptyEl.classList.toggle('hidden', files.length > 0);
+}
+
+function filesByDay() {
+  const map = new Map();
+  for (const file of allFiles) {
+    const key = localDayKey(file.createdAt);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(file);
+  }
+  return map;
+}
+
+async function loadFiles() {
+  const res = await fetch('/api/files');
+  allFiles = await res.json();
+  filesCount.textContent = String(allFiles.length);
+
+  if (selectedDay === null) {
+    selectedDay = allFiles.length ? localDayKey(allFiles[0].createdAt) : todayKey();
+  }
+
+  renderFiles();
+}
+
+function renderFiles() {
+  if (viewMode === 'list') {
+    renderFileList(filesList, filesEmpty, allFiles);
+    return;
+  }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const byDay = filesByDay();
+
+  if (!calCursor) {
+    const newest = allFiles[0];
+    const ref = newest ? new Date(newest.createdAt) : new Date();
+    calCursor = { year: ref.getFullYear(), month: ref.getMonth() };
+  }
+
+  const { year, month } = calCursor;
+  calTitle.textContent = `${NL_MONTHS[month]} ${year}`;
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const offset = (new Date(year, month, 1).getDay() + 6) % 7; // week begint op maandag
+  const tKey = todayKey();
+
+  let html = '';
+  for (let i = 0; i < offset; i++) html += '<span class="cal-cell is-blank"></span>';
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${year}-${pad2(month + 1)}-${pad2(day)}`;
+    const count = byDay.get(key)?.length ?? 0;
+    const classes = ['cal-cell'];
+    if (count) classes.push('has-uploads');
+    if (key === selectedDay) classes.push('is-selected');
+    if (key === tKey) classes.push('is-today');
+
+    html += `
+      <button
+        type="button"
+        class="${classes.join(' ')}"
+        data-day="${key}"
+        role="gridcell"
+        aria-selected="${key === selectedDay}"
+        aria-label="${escapeAttr(dayTitle(key))}${count ? `, ${count} upload${count === 1 ? '' : 's'}` : ', geen uploads'}"
+      >
+        <span class="cal-daynum">${day}</span>
+        ${count ? `<span class="cal-count">${count}</span>` : ''}
+      </button>`;
+  }
+
+  calGrid.innerHTML = html;
+
+  const files = byDay.get(selectedDay) ?? [];
+  calDayTitle.textContent = `${dayTitle(selectedDay)} · ${files.length} bestand${files.length === 1 ? '' : 'en'}`;
+  renderFileList(dayFilesList, dayFilesEmpty, files);
+}
+
+function setView(mode) {
+  viewMode = mode === 'calendar' ? 'calendar' : 'list';
+  const isList = viewMode === 'list';
+
+  listView.hidden = !isList;
+  calendarView.hidden = isList;
+  viewListBtn.classList.toggle('is-active', isList);
+  viewCalBtn.classList.toggle('is-active', !isList);
+  viewListBtn.setAttribute('aria-selected', String(isList));
+  viewCalBtn.setAttribute('aria-selected', String(!isList));
+
+  renderFiles();
+}
+
+function shiftMonth(delta) {
+  const base = calCursor || {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+  };
+  const d = new Date(base.year, base.month + delta, 1);
+  calCursor = { year: d.getFullYear(), month: d.getMonth() };
+  renderCalendar();
+}
+
+viewListBtn.addEventListener('click', () => setView('list'));
+viewCalBtn.addEventListener('click', () => setView('calendar'));
+
+calPrev.addEventListener('click', () => shiftMonth(-1));
+calNext.addEventListener('click', () => shiftMonth(1));
+
+calGrid.addEventListener('click', (e) => {
+  const cell = e.target.closest('[data-day]');
+  if (!cell) return;
+  selectedDay = cell.dataset.day;
+  renderCalendar();
+});
+
 
 const textById = new Map();
 
@@ -272,13 +480,16 @@ textForm.addEventListener('submit', async (e) => {
   }
 });
 
-filesList.addEventListener('click', async (e) => {
-  const id = e.target.dataset?.deleteFile;
-  if (!id) return;
+async function onFileListClick(e) {
+  const btn = e.target.closest('[data-delete-file]');
+  if (!btn) return;
   if (!confirm('Dit bestand permanent verwijderen?')) return;
-  await fetch(`/api/files/${id}`, { method: 'DELETE' });
+  await fetch(`/api/files/${btn.dataset.deleteFile}`, { method: 'DELETE' });
   await loadFiles();
-});
+}
+
+filesList.addEventListener('click', onFileListClick);
+dayFilesList.addEventListener('click', onFileListClick);
 
 textsList.addEventListener('click', (e) => {
   void (async () => {
