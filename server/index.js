@@ -304,6 +304,25 @@ app.get('/api/files/:id/thumbnail', async (req, res) => {
   res.sendFile(thumb);
 });
 
+app.get('/api/files/:id/preview', (req, res) => {
+  const row = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  if (!row) {
+    return res.status(404).json({ error: 'Bestand niet gevonden' });
+  }
+
+  const filePath = path.join(filesDir, row.stored_name);
+  if (!fs.existsSync(filePath)) {
+    db.prepare('DELETE FROM files WHERE id = ?').run(row.id);
+    return res.status(404).json({ error: 'Bestand niet meer op de server' });
+  }
+
+  // Inline tonen (geen download) zodat de UI het in een voorvertoning kan openen.
+  if (row.mime_type) res.type(row.mime_type);
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.original_name)}"`);
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.sendFile(filePath);
+});
+
 app.get('/api/files/:id/download', (req, res) => {
   const row = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
   if (!row) {

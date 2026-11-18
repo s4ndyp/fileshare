@@ -51,10 +51,7 @@ const uploadToast = document.getElementById('uploadToast');
 const filesList = document.getElementById('filesList');
 const filesEmpty = document.getElementById('filesEmpty');
 const filesCount = document.getElementById('filesCount');
-const listView = document.getElementById('listView');
-const calendarView = document.getElementById('calendarView');
-const viewListBtn = document.getElementById('viewListBtn');
-const viewCalBtn = document.getElementById('viewCalBtn');
+const calBadge = document.getElementById('calBadge');
 const calTitle = document.getElementById('calTitle');
 const calGrid = document.getElementById('calGrid');
 const calPrev = document.getElementById('calPrev');
@@ -66,6 +63,16 @@ const textForm = document.getElementById('textForm');
 const textInput = document.getElementById('textInput');
 const textsList = document.getElementById('textsList');
 const textsEmpty = document.getElementById('textsEmpty');
+const textsCount = document.getElementById('textsCount');
+const snippetModal = document.getElementById('snippetModal');
+const snippetModalText = document.getElementById('snippetModalText');
+const snippetModalDate = document.getElementById('snippetModalDate');
+const snippetCopyBtn = document.getElementById('snippetCopyBtn');
+const snippetDeleteBtn = document.getElementById('snippetDeleteBtn');
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxName = document.getElementById('lightboxName');
+const lightboxDownload = document.getElementById('lightboxDownload');
 const refreshBtn = document.getElementById('refreshBtn');
 const storageFill = document.getElementById('storageFill');
 const storageFree = document.getElementById('storageFree');
@@ -211,7 +218,6 @@ const PREVIEW_EXTENSIONS = new Set([
 ]);
 
 let allFiles = [];
-let viewMode = 'list';
 let selectedDay = null;
 let calCursor = null;
 
@@ -251,17 +257,40 @@ function hasPreview(file) {
   return m ? PREVIEW_EXTENSIONS.has(`.${m[1].toLowerCase()}`) : false;
 }
 
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.bmp', '.tif', '.tiff', '.svg']);
+
+/** Alleen afbeeldingen kun je in de voorvertoning openen. */
+function isImageFile(file) {
+  const mime = file.mimeType || '';
+  if (mime.startsWith('image/')) return true;
+  const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+  return m ? IMAGE_EXTENSIONS.has(`.${m[1].toLowerCase()}`) : false;
+}
+
 /** Thumbnail met de bestandsextensie als terugvaloptie (als er geen preview is). */
 function thumbHtml(file) {
   const label = escapeHtml(fileExtLabel(file));
   if (!hasPreview(file)) {
     return `<div class="item-thumb" aria-hidden="true"><span class="thumb-label">${label}</span></div>`;
   }
-  return `
-    <div class="item-thumb">
+
+  const inner = `
       <span class="thumb-label">${label}</span>
-      <img class="thumb-img" src="/api/files/${file.id}/thumbnail" alt="" loading="lazy" decoding="async" onerror="this.remove()" />
-    </div>`;
+      <img class="thumb-img" src="/api/files/${file.id}/thumbnail" alt="" loading="lazy" decoding="async" onerror="this.remove()" />`;
+
+  if (!isImageFile(file)) {
+    return `<div class="item-thumb">${inner}</div>`;
+  }
+
+  return `
+    <button
+      type="button"
+      class="item-thumb is-clickable"
+      data-preview-file="${file.id}"
+      data-preview-name="${escapeAttr(file.name)}"
+      title="Voorvertoning van ${escapeAttr(file.name)}"
+      aria-label="Voorvertoning van ${escapeAttr(file.name)}"
+    >${inner}</button>`;
 }
 
 function fileItemHtml(file) {
@@ -310,10 +339,7 @@ async function loadFiles() {
 }
 
 function renderFiles() {
-  if (viewMode === 'list') {
-    renderFileList(filesList, filesEmpty, allFiles);
-    return;
-  }
+  renderFileList(filesList, filesEmpty, allFiles);
   renderCalendar();
 }
 
@@ -360,23 +386,14 @@ function renderCalendar() {
 
   calGrid.innerHTML = html;
 
+  const monthPrefix = `${year}-${pad2(month + 1)}`;
+  calBadge.textContent = String(
+    allFiles.filter((f) => localDayKey(f.createdAt).startsWith(monthPrefix)).length,
+  );
+
   const files = byDay.get(selectedDay) ?? [];
   calDayTitle.textContent = `${dayTitle(selectedDay)} · ${files.length} bestand${files.length === 1 ? '' : 'en'}`;
   renderFileList(dayFilesList, dayFilesEmpty, files);
-}
-
-function setView(mode) {
-  viewMode = mode === 'calendar' ? 'calendar' : 'list';
-  const isList = viewMode === 'list';
-
-  listView.hidden = !isList;
-  calendarView.hidden = isList;
-  viewListBtn.classList.toggle('is-active', isList);
-  viewCalBtn.classList.toggle('is-active', !isList);
-  viewListBtn.setAttribute('aria-selected', String(isList));
-  viewCalBtn.setAttribute('aria-selected', String(!isList));
-
-  renderFiles();
 }
 
 function shiftMonth(delta) {
@@ -388,9 +405,6 @@ function shiftMonth(delta) {
   calCursor = { year: d.getFullYear(), month: d.getMonth() };
   renderCalendar();
 }
-
-viewListBtn.addEventListener('click', () => setView('list'));
-viewCalBtn.addEventListener('click', () => setView('calendar'));
 
 calPrev.addEventListener('click', () => shiftMonth(-1));
 calNext.addEventListener('click', () => shiftMonth(1));
@@ -404,31 +418,99 @@ calGrid.addEventListener('click', (e) => {
 
 
 const textById = new Map();
+let openSnippetId = null;
+
+function firstLine(content) {
+  const line = String(content).split('\n').find((l) => l.trim().length > 0) ?? '';
+  return line.length > 120 ? `${line.slice(0, 120)}…` : line;
+}
 
 async function loadTexts() {
   const res = await fetch('/api/texts');
   const texts = await res.json();
-  textsList.innerHTML = '';
   textById.clear();
+  textsCount.textContent = String(texts.length);
   textsEmpty.classList.toggle('hidden', texts.length > 0);
 
-  for (const t of texts) {
-    textById.set(t.id, t.content);
-    const li = document.createElement('li');
-    li.className = 'item text-item';
-    li.innerHTML = `
-      <div class="item-main">
-        <div class="item-name">${escapeHtml(t.content)}</div>
-        <div class="item-meta">${formatDate(t.createdAt)}</div>
-      </div>
-      <div class="item-actions">
-        <button type="button" class="btn btn-sm btn-outline" data-copy-text="${t.id}">Kopieer</button>
-        <button type="button" class="btn btn-sm btn-danger" data-delete-text="${t.id}">Verwijder</button>
-      </div>
-    `;
-    textsList.appendChild(li);
-  }
+  textsList.innerHTML = texts
+    .map((t) => {
+      textById.set(t.id, t);
+      return `
+        <li class="item snippet-item" data-snippet="${t.id}" role="button" tabindex="0" title="Klik voor de volledige tekst">
+          <span class="snippet-line">${escapeHtml(firstLine(t.content))}</span>
+          <span class="snippet-date">${formatDate(t.createdAt)}</span>
+        </li>`;
+    })
+    .join('');
 }
+
+function openSnippet(id) {
+  const t = textById.get(id);
+  if (!t) return;
+  openSnippetId = id;
+  snippetModalText.textContent = t.content;
+  snippetModalDate.textContent = formatDate(t.createdAt);
+  snippetCopyBtn.textContent = 'Kopieer';
+  snippetModal.hidden = false;
+}
+
+function closeSnippet() {
+  snippetModal.hidden = true;
+  openSnippetId = null;
+}
+
+/* ---------- voorvertoning van afbeeldingen ---------- */
+
+function openPreview(id, name) {
+  lightboxImg.src = `/api/files/${id}/preview`;
+  lightboxImg.alt = name || '';
+  lightboxName.textContent = name || '';
+  lightboxDownload.href = `/api/files/${id}/download`;
+  lightbox.hidden = false;
+}
+
+function closePreview() {
+  lightbox.hidden = true;
+  lightboxImg.removeAttribute('src');
+}
+
+lightbox.addEventListener('click', (e) => {
+  if (e.target.closest('[data-lightbox-close]')) closePreview();
+});
+
+snippetModal.addEventListener('click', (e) => {
+  if (e.target.closest('[data-snippet-close]')) closeSnippet();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!lightbox.hidden) closePreview();
+  if (!snippetModal.hidden) closeSnippet();
+});
+
+snippetCopyBtn.addEventListener('click', async () => {
+  const t = openSnippetId ? textById.get(openSnippetId) : null;
+  if (!t) return;
+  let ok = false;
+  try {
+    ok = await copyToClipboard(t.content);
+  } catch {
+    ok = false;
+  }
+  snippetCopyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
+  setTimeout(() => {
+    snippetCopyBtn.textContent = 'Kopieer';
+  }, 1500);
+});
+
+snippetDeleteBtn.addEventListener('click', async () => {
+  if (!openSnippetId) return;
+  if (!confirm('Deze tekst verwijderen?')) return;
+  const id = openSnippetId;
+  await fetch(`/api/texts/${id}`, { method: 'DELETE' });
+  closeSnippet();
+  await loadTexts();
+});
 
 uploadForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -481,6 +563,12 @@ textForm.addEventListener('submit', async (e) => {
 });
 
 async function onFileListClick(e) {
+  const preview = e.target.closest('[data-preview-file]');
+  if (preview) {
+    openPreview(preview.dataset.previewFile, preview.dataset.previewName);
+    return;
+  }
+
   const btn = e.target.closest('[data-delete-file]');
   if (!btn) return;
   if (!confirm('Dit bestand permanent verwijderen?')) return;
@@ -491,32 +579,19 @@ async function onFileListClick(e) {
 filesList.addEventListener('click', onFileListClick);
 dayFilesList.addEventListener('click', onFileListClick);
 
-textsList.addEventListener('click', (e) => {
-  void (async () => {
-    const copyBtn = e.target.closest('[data-copy-text]');
-    if (copyBtn) {
-      const copyId = copyBtn.dataset.copyText;
-      const text = textById.get(copyId) ?? '';
-      let ok = false;
-      try {
-        ok = await copyToClipboard(text);
-      } catch {
-        ok = false;
-      }
-      copyBtn.textContent = ok ? 'Gekopieerd!' : 'Mislukt';
-      setTimeout(() => {
-        copyBtn.textContent = 'Kopieer';
-      }, 1500);
-      return;
-    }
+function onSnippetActivate(target) {
+  const item = target.closest('[data-snippet]');
+  if (item) openSnippet(item.dataset.snippet);
+}
 
-    const deleteBtn = e.target.closest('[data-delete-text]');
-    if (!deleteBtn) return;
-    const id = deleteBtn.dataset.deleteText;
-    if (!confirm('Deze tekst verwijderen?')) return;
-    await fetch(`/api/texts/${id}`, { method: 'DELETE' });
-    await loadTexts();
-  })();
+textsList.addEventListener('click', (e) => onSnippetActivate(e.target));
+
+textsList.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const item = e.target.closest('[data-snippet]');
+  if (!item) return;
+  e.preventDefault();
+  openSnippet(item.dataset.snippet);
 });
 
 refreshBtn.addEventListener('click', async () => {
