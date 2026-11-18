@@ -11,6 +11,7 @@ Donker-themed webapp om bestanden en tekst (wachtwoorden, sleutels, snippets) ee
 - **Thumbnail per bestand**; klik op de thumbnail van een afbeelding opent de volledige afbeelding in een voorvertoning (met downloadlink)
 - **Snippets** als één regel per stuk, met een popup (kopiëren/verwijderen) als je erop klikt
 - De bestandenlijst en snippetskolom vullen het scherm en scrollen **binnen hun eigen kader**; de pagina groeit niet mee
+- **Alles wissen**: knop links naast de schijfruimte in de header om in één keer álle bestanden van alle datums op te ruimen, met een tweetraps-bevestiging
 - Automatisch verversen van de lijsten (elke 15 seconden)
 
 ## Testen

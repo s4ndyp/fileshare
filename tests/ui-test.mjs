@@ -76,6 +76,9 @@ w.fetch = async (url, opts = {}) => {
     return { ok: true, status: 200, json: async () => ({ freeBytes: 1000, usedPercent: 50 }) };
   }
   if (u.startsWith('/api/files')) {
+    if (opts.method === 'DELETE' && u === '/api/files') {
+      return { ok: true, status: 200, json: async () => ({ deleted: FILES.length }) };
+    }
     return { ok: true, status: 200, json: async () => FILES };
   }
   if (u.startsWith('/api/texts')) {
@@ -200,6 +203,29 @@ check('popup toont de tweede snippet', q('#snippetModalText').textContent === 'l
 await click(q('#snippetModal #snippetDeleteBtn'));
 check('verwijderen stuurt een DELETE', calls.includes('DELETE /api/texts/t2'), calls.filter((c) => c.startsWith('DELETE')).join(', '));
 check('verwijderen sluit de popup', q('#snippetModal').hidden === true);
+
+/* ---------- alles wissen ---------- */
+
+check('knop "Alles wissen" staat in de header', q('header #deleteAllBtn') !== null);
+check(
+  'de knop staat links naast de schijfruimte',
+  q('header #deleteAllBtn').nextElementSibling?.id === 'storageWidget',
+);
+check('bevestigingsvenster start verborgen', q('#deleteAllModal').hidden === true);
+
+await click(q('#deleteAllBtn'));
+check('eerste bevestiging opent het venster', q('#deleteAllModal').hidden === false);
+check('venster noemt het aantal bestanden', q('#deleteAllText').textContent.includes('4'), q('#deleteAllText').textContent);
+check('venster waarschuwt voor alle datums', q('#deleteAllText').textContent.includes('alle datums'));
+check('nog geen DELETE verstuurd', !calls.includes('DELETE /api/files'), calls.filter((c) => c.startsWith('DELETE')).join(', '));
+
+await click(q('#deleteAllModal [data-deleteall-close]'));
+check('annuleren sluit het venster zonder te wissen', q('#deleteAllModal').hidden === true && !calls.includes('DELETE /api/files'));
+
+await click(q('#deleteAllBtn'));
+await click(q('#deleteAllConfirm'));
+check('tweede bevestiging wist alles', calls.includes('DELETE /api/files'), calls.filter((c) => c.startsWith('DELETE')).join(', '));
+check('venster sluit na het wissen', q('#deleteAllModal').hidden === true);
 
 /* ---------- rapportage ---------- */
 

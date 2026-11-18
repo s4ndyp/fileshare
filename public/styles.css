@@ -381,6 +381,18 @@ body {
   background: rgba(232, 93, 106, 0.22);
 }
 
+.btn-ghost-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(232, 93, 106, 0.35);
+  flex-shrink: 0;
+}
+
+.btn-ghost-danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
 .text-form {
   display: flex;
   flex-direction: column;
@@ -559,6 +571,17 @@ textarea:focus {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.modal-box-sm {
+  width: min(30rem, 100%);
+}
+
+.modal-text-plain {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
 }
 
 .lightbox-figure {
