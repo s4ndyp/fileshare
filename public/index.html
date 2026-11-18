@@ -45,9 +45,10 @@
     </header>
 
     <main class="layout">
-      <section class="card" aria-labelledby="upload-heading">
+      <!-- Rij 1: brede uploadkaart over kolom 1-2, snippet-invoer in kolom 3 -->
+      <section class="card card-upload" aria-labelledby="upload-heading">
         <h2 id="upload-heading">Bestanden uploaden</h2>
-        <form id="uploadForm">
+        <form id="uploadForm" class="upload-form">
           <label class="dropzone" id="dropzone" for="fileInput">
             <input
               type="file"
@@ -61,84 +62,32 @@
             <span class="dropzone-hint" id="selectedHint">Geen bestanden geselecteerd</span>
           </label>
 
-          <div class="pending-wrap" id="pendingWrap" hidden>
-            <p class="pending-title">Klaar om te uploaden</p>
-            <ul class="item-list pending-list" id="pendingList"></ul>
+          <div class="upload-side">
+            <label class="checkbox-row">
+              <input type="checkbox" id="saveAsZip" />
+              <span>Opslaan als zip bij meerdere bestanden</span>
+            </label>
+
+            <label class="checkbox-row">
+              <input type="checkbox" id="deleteAfterDownload" />
+              <span>Verwijder bestanden na download</span>
+            </label>
+
+            <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+              Opslaan
+            </button>
+
+            <div class="pending-wrap" id="pendingWrap" hidden>
+              <p class="pending-title">Klaar om te uploaden</p>
+              <ul class="item-list pending-list" id="pendingList"></ul>
+            </div>
           </div>
-
-          <label class="checkbox-row">
-            <input type="checkbox" id="saveAsZip" />
-            <span>Opslaan als zip bij meerdere bestanden</span>
-          </label>
-
-          <label class="checkbox-row">
-            <input type="checkbox" id="deleteAfterDownload" />
-            <span>Verwijder bestanden na download</span>
-          </label>
-
-          <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-            Uploaden
-          </button>
         </form>
         <p class="toast" id="uploadToast" role="status" hidden></p>
       </section>
 
-      <section class="card" aria-labelledby="files-heading">
-        <div class="card-head">
-          <h2 id="files-heading">Gedeelde bestanden</h2>
-          <span class="badge" id="filesCount">0</span>
-        </div>
-
-        <div class="view-switch" role="tablist" aria-label="Weergave van de bestanden">
-          <button
-            type="button"
-            class="view-btn is-active"
-            id="viewListBtn"
-            data-view="list"
-            role="tab"
-            aria-selected="true"
-          >
-            ☰ Lijst
-          </button>
-          <button
-            type="button"
-            class="view-btn"
-            id="viewCalBtn"
-            data-view="calendar"
-            role="tab"
-            aria-selected="false"
-          >
-            ▦ Kalender
-          </button>
-        </div>
-
-        <div id="listView">
-          <ul class="item-list" id="filesList"></ul>
-          <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
-        </div>
-
-        <div id="calendarView" hidden>
-          <div class="calendar">
-            <div class="cal-head">
-              <button type="button" class="btn btn-ghost btn-sm" id="calPrev" aria-label="Vorige maand">‹</button>
-              <span class="cal-title" id="calTitle">—</span>
-              <button type="button" class="btn btn-ghost btn-sm" id="calNext" aria-label="Volgende maand">›</button>
-            </div>
-            <div class="cal-dow-row" aria-hidden="true">
-              <span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span>
-            </div>
-            <div class="cal-grid" id="calGrid" role="grid" aria-label="Uploads per dag"></div>
-          </div>
-          <div class="cal-day">
-            <p class="cal-day-title" id="calDayTitle">Kies een dag met uploads</p>
-            <ul class="item-list" id="dayFilesList"></ul>
-            <p class="empty" id="dayFilesEmpty">Geen uploads op deze dag.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="card card-wide" aria-labelledby="text-heading">
-        <h2 id="text-heading">Tekst &amp; snippets</h2>
+      <section class="card card-snippet-new" aria-labelledby="snippet-new-heading">
+        <h2 id="snippet-new-heading">Snippet opslaan</h2>
         <p class="hint">Wachtwoorden, sleutels of code — één regel per opslaan.</p>
         <form id="textForm" class="text-form">
           <textarea
@@ -149,15 +98,85 @@
           ></textarea>
           <button type="submit" class="btn btn-primary">Opslaan</button>
         </form>
-        <ul class="item-list text-list" id="textsList"></ul>
+      </section>
+
+      <!-- Rij 2: kalender | bestanden | snippets -->
+      <section class="card card-calendar" aria-labelledby="calendar-heading">
+        <div class="card-head">
+          <h2 id="calendar-heading">Kalender</h2>
+          <span class="badge" id="calBadge">0</span>
+        </div>
+        <div class="calendar">
+          <div class="cal-head">
+            <button type="button" class="btn btn-ghost btn-sm" id="calPrev" aria-label="Vorige maand">‹</button>
+            <span class="cal-title" id="calTitle">—</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="calNext" aria-label="Volgende maand">›</button>
+          </div>
+          <div class="cal-dow-row" aria-hidden="true">
+            <span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span>
+          </div>
+          <div class="cal-grid" id="calGrid" role="grid" aria-label="Uploads per dag"></div>
+        </div>
+        <div class="cal-day">
+          <p class="cal-day-title" id="calDayTitle">Kies een dag met uploads</p>
+          <ul class="item-list" id="dayFilesList"></ul>
+          <p class="empty" id="dayFilesEmpty">Geen uploads op deze dag.</p>
+        </div>
+      </section>
+
+      <section class="card card-files" aria-labelledby="files-heading">
+        <div class="card-head">
+          <h2 id="files-heading">Gedeelde bestanden</h2>
+          <span class="badge" id="filesCount">0</span>
+        </div>
+        <ul class="item-list" id="filesList"></ul>
+        <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
+      </section>
+
+      <section class="card card-snippets" aria-labelledby="text-heading">
+        <div class="card-head">
+          <h2 id="text-heading">Snippets</h2>
+          <span class="badge" id="textsCount">0</span>
+        </div>
+        <ul class="item-list snippet-list" id="textsList"></ul>
         <p class="empty" id="textsEmpty">Nog geen opgeslagen tekst.</p>
       </section>
     </main>
+
+    <div class="modal" id="snippetModal" hidden>
+      <div class="modal-backdrop" data-snippet-close></div>
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="snippetModalTitle">
+        <div class="modal-head">
+          <h3 id="snippetModalTitle">Snippet</h3>
+          <span class="modal-meta" id="snippetModalDate"></span>
+          <button type="button" class="btn btn-ghost btn-sm" data-snippet-close>Sluiten</button>
+        </div>
+        <pre class="modal-text" id="snippetModalText"></pre>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-sm btn-outline" id="snippetCopyBtn">Kopieer</button>
+          <button type="button" class="btn btn-sm btn-danger" id="snippetDeleteBtn">Verwijder</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <div class="lightbox-backdrop" data-lightbox-close></div>
+      <figure class="lightbox-figure">
+        <img id="lightboxImg" alt="" />
+        <figcaption class="lightbox-bar">
+          <span class="lightbox-name" id="lightboxName"></span>
+          <span class="lightbox-actions">
+            <a class="btn btn-sm btn-outline" id="lightboxDownload" href="#" download>Download</a>
+            <button type="button" class="btn btn-sm btn-ghost" data-lightbox-close>Sluiten</button>
+          </span>
+        </figcaption>
+      </figure>
+    </div>
 
     <footer class="footer">
       <span>Data blijft op deze server staan tot je ze verwijdert of na download (indien gekozen).</span>
     </footer>
 
-    <script src="/app.js?v=3" type="module"></script>
+    <script src="/app.js?v=4" type="module"></script>
   </body>
 </html>
