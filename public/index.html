@@ -100,11 +100,16 @@
         </form>
       </section>
 
-      <!-- Rij 2: kalender | bestanden | snippets -->
+      <!-- Rij 2: kalender (filter) | bestanden | snippets -->
       <section class="card card-calendar" aria-labelledby="calendar-heading">
         <div class="card-head">
           <h2 id="calendar-heading">Kalender</h2>
-          <span class="badge" id="calBadge">0</span>
+          <div class="card-head-actions">
+            <span class="badge" id="calBadge">0</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="showAllBtn" title="Filter wissen: alle bestanden tonen">
+              Alles tonen
+            </button>
+          </div>
         </div>
         <div class="calendar">
           <div class="cal-head">
@@ -117,17 +122,16 @@
           </div>
           <div class="cal-grid" id="calGrid" role="grid" aria-label="Uploads per dag"></div>
         </div>
-        <div class="cal-day">
-          <p class="cal-day-title" id="calDayTitle">Kies een dag met uploads</p>
-          <ul class="item-list" id="dayFilesList"></ul>
-          <p class="empty" id="dayFilesEmpty">Geen uploads op deze dag.</p>
-        </div>
+        <p class="hint cal-hint">Klik op een dag om de bestandenlijst te filteren.</p>
       </section>
 
       <section class="card card-files" aria-labelledby="files-heading">
         <div class="card-head">
           <h2 id="files-heading">Gedeelde bestanden</h2>
-          <span class="badge" id="filesCount">0</span>
+          <div class="card-head-actions">
+            <span class="files-filter" id="filesFilter">Alle bestanden</span>
+            <span class="badge" id="filesCount">0</span>
+          </div>
         </div>
         <ul class="item-list" id="filesList"></ul>
         <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
@@ -177,6 +181,6 @@
       <span>Data blijft op deze server staan tot je ze verwijdert of na download (indien gekozen).</span>
     </footer>
 
-    <script src="/app.js?v=4" type="module"></script>
+    <script src="/app.js?v=5" type="module"></script>
   </body>
 </html>

@@ -51,14 +51,13 @@ const uploadToast = document.getElementById('uploadToast');
 const filesList = document.getElementById('filesList');
 const filesEmpty = document.getElementById('filesEmpty');
 const filesCount = document.getElementById('filesCount');
+const filesFilter = document.getElementById('filesFilter');
 const calBadge = document.getElementById('calBadge');
 const calTitle = document.getElementById('calTitle');
 const calGrid = document.getElementById('calGrid');
 const calPrev = document.getElementById('calPrev');
 const calNext = document.getElementById('calNext');
-const calDayTitle = document.getElementById('calDayTitle');
-const dayFilesList = document.getElementById('dayFilesList');
-const dayFilesEmpty = document.getElementById('dayFilesEmpty');
+const showAllBtn = document.getElementById('showAllBtn');
 const textForm = document.getElementById('textForm');
 const textInput = document.getElementById('textInput');
 const textsList = document.getElementById('textsList');
@@ -218,7 +217,9 @@ const PREVIEW_EXTENSIONS = new Set([
 ]);
 
 let allFiles = [];
+/** null = geen filter (alle bestanden tonen). */
 let selectedDay = null;
+let dayInitialised = false;
 let calCursor = null;
 
 function pad2(n) {
@@ -329,17 +330,35 @@ function filesByDay() {
 async function loadFiles() {
   const res = await fetch('/api/files');
   allFiles = await res.json();
-  filesCount.textContent = String(allFiles.length);
 
-  if (selectedDay === null) {
-    selectedDay = allFiles.length ? localDayKey(allFiles[0].createdAt) : todayKey();
+  // De kalender opent altijd op vandaag; daarna onthoudt de UI de keuze.
+  if (!dayInitialised) {
+    dayInitialised = true;
+    selectedDay = todayKey();
   }
 
   renderFiles();
 }
 
+/** Bestanden die de lijst toont: gefilterd op de gekozen kalenderdag, of alles. */
+function visibleFiles() {
+  if (!selectedDay) return allFiles;
+  return allFiles.filter((file) => localDayKey(file.createdAt) === selectedDay);
+}
+
 function renderFiles() {
-  renderFileList(filesList, filesEmpty, allFiles);
+  const files = visibleFiles();
+  renderFileList(filesList, filesEmpty, files);
+  filesCount.textContent = String(files.length);
+
+  if (selectedDay) {
+    filesFilter.textContent = dayTitle(selectedDay);
+    filesEmpty.textContent = 'Geen uploads op deze dag — klik op "Alles tonen" voor alle bestanden.';
+  } else {
+    filesFilter.textContent = 'Alle bestanden';
+    filesEmpty.textContent = 'Nog geen bestanden. Upload iets op een ander apparaat.';
+  }
+
   renderCalendar();
 }
 
@@ -347,9 +366,8 @@ function renderCalendar() {
   const byDay = filesByDay();
 
   if (!calCursor) {
-    const newest = allFiles[0];
-    const ref = newest ? new Date(newest.createdAt) : new Date();
-    calCursor = { year: ref.getFullYear(), month: ref.getMonth() };
+    const now = new Date();
+    calCursor = { year: now.getFullYear(), month: now.getMonth() };
   }
 
   const { year, month } = calCursor;
@@ -390,10 +408,6 @@ function renderCalendar() {
   calBadge.textContent = String(
     allFiles.filter((f) => localDayKey(f.createdAt).startsWith(monthPrefix)).length,
   );
-
-  const files = byDay.get(selectedDay) ?? [];
-  calDayTitle.textContent = `${dayTitle(selectedDay)} · ${files.length} bestand${files.length === 1 ? '' : 'en'}`;
-  renderFileList(dayFilesList, dayFilesEmpty, files);
 }
 
 function shiftMonth(delta) {
@@ -409,11 +423,16 @@ function shiftMonth(delta) {
 calPrev.addEventListener('click', () => shiftMonth(-1));
 calNext.addEventListener('click', () => shiftMonth(1));
 
+showAllBtn.addEventListener('click', () => {
+  selectedDay = null;
+  renderFiles();
+});
+
 calGrid.addEventListener('click', (e) => {
   const cell = e.target.closest('[data-day]');
   if (!cell) return;
   selectedDay = cell.dataset.day;
-  renderCalendar();
+  renderFiles();
 });
 
 
@@ -577,7 +596,6 @@ async function onFileListClick(e) {
 }
 
 filesList.addEventListener('click', onFileListClick);
-dayFilesList.addEventListener('click', onFileListClick);
 
 function onSnippetActivate(target) {
   const item = target.closest('[data-snippet]');
