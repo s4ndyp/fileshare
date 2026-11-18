@@ -2,9 +2,9 @@
  * Headless interactietest van de fileshare-UI (jsdom).
  * Draait zonder browser en zonder server:  node tests/ui-test.mjs
  *
- * Getest gedrag dat een syntaxcheck niet vangt: de 3-koloms layout, de
- * kalenderdag-selectie, thumbnails (en het openen van een afbeelding) en de
- * snippet-popup.
+ * Getest gedrag dat een syntaxcheck niet vangt: de 3-koloms layout, de kalender
+ * als filter voor de bestandenlijst (met "Alles tonen"), thumbnails (en het
+ * openen van een afbeelding) en de snippet-popup.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,19 +14,43 @@ import { JSDOM } from 'jsdom';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-// Lokale tijdstippen: de dagsleutel is dan tijdzone-onafhankelijk.
-const d = (y, m, day, hour = 12) => new Date(y, m - 1, day, hour, 0, 0).getTime();
+// Datums relatief aan vandaag (lokale tijd), zodat de test tijdzone- en
+// maand-onafhankelijk blijft.
+const NOW = new Date();
+const pad2 = (n) => String(n).padStart(2, '0');
+const dayKey = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const TODAY = dayKey(NOW);
+const firstOfMonth = (offset) => new Date(NOW.getFullYear(), NOW.getMonth() + offset, 1, 12, 0, 0).getTime();
+const todayAt = (hour) => new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate(), hour, 0, 0).getTime();
 
 const FILES = [
-  { id: 'f2', name: 'rapport.pdf', size: 400000, mimeType: 'application/pdf', deleteAfterDownload: false, createdAt: d(2026, 11, 18, 11) },
-  { id: 'f1', name: 'DJI_0574.JPG', size: 3200000, mimeType: 'image/jpeg', deleteAfterDownload: false, createdAt: d(2026, 11, 18, 10) },
-  { id: 'f3', name: 'notities.txt', size: 1200, mimeType: 'text/plain', deleteAfterDownload: true, createdAt: d(2026, 11, 2) },
-  { id: 'f4', name: 'backup.zip', size: 9000000, mimeType: 'application/zip', deleteAfterDownload: false, createdAt: d(2026, 10, 15) },
+  { id: 'f2', name: 'rapport.pdf', size: 400000, mimeType: 'application/pdf', deleteAfterDownload: false, createdAt: todayAt(11) },
+  { id: 'f1', name: 'DJI_0574.JPG', size: 3200000, mimeType: 'image/jpeg', deleteAfterDownload: false, createdAt: todayAt(10) },
+  { id: 'f3', name: 'notities.txt', size: 1200, mimeType: 'text/plain', deleteAfterDownload: true, createdAt: firstOfMonth(0) },
+  { id: 'f4', name: 'backup.zip', size: 9000000, mimeType: 'application/zip', deleteAfterDownload: false, createdAt: firstOfMonth(-1) },
 ];
 
+const PREV_MONTH_KEY = dayKey(firstOfMonth(-1));
+const todayCount = FILES.filter((f) => dayKey(f.createdAt) === TODAY).length;
+const thisMonthPrefix = TODAY.slice(0, 7);
+const thisMonthCount = FILES.filter((f) => dayKey(f.createdAt).startsWith(thisMonthPrefix)).length;
+const uploadDaysThisMonth = new Set(
+  FILES.filter((f) => dayKey(f.createdAt).startsWith(thisMonthPrefix)).map((f) => dayKey(f.createdAt)),
+).size;
+const monthName = new Date(NOW.getFullYear(), NOW.getMonth(), 1).toLocaleDateString('nl-NL', {
+  month: 'long',
+  year: 'numeric',
+});
+const todayLabel = new Date(`${TODAY}T12:00:00`)
+  .toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+  .toLowerCase();
+
 const SNIPPETS = [
-  { id: 't1', content: 'eerste regel van de snippet\ntweede regel met meer tekst', createdAt: d(2026, 11, 17, 9) },
-  { id: 't2', content: 'losse regel', createdAt: d(2026, 11, 16, 9) },
+  { id: 't1', content: 'eerste regel van de snippet\ntweede regel met meer tekst', createdAt: todayAt(9) },
+  { id: 't2', content: 'losse regel', createdAt: todayAt(8) },
 ];
 
 const checks = [];
@@ -88,15 +112,47 @@ check('opslaan-knop staat bij de opties', q('.card-upload .upload-side #uploadBt
 check('dropzone staat in dezelfde kaart', q('.card-upload #dropzone') !== null);
 check('snippet-invoer in de derde kolom', q('.card-snippet-new #textForm') !== null);
 check('kalender-, bestanden- en snippetskaart bestaan', q('.card-calendar') !== null && q('.card-files') !== null && q('.card-snippets') !== null);
-check(
-  'kalender en bestandenlijst zijn tegelijk zichtbaar (geen toggle)',
-  q('#calGrid') !== null && q('#filesList') !== null && q('#viewListBtn') === null,
-);
+check('geen bestandenlijst meer onder de kalender', q('#dayFilesList') === null && q('#calDayTitle') === null);
+check('knop "Alles tonen" staat boven de kalender', q('.card-calendar #showAllBtn') !== null);
+
+/* ---------- kalender opent op vandaag en filtert de lijst ---------- */
+
+check('kalender opent op de huidige maand', q('#calTitle').textContent === monthName, `${q('#calTitle').textContent} vs ${monthName}`);
+check('vandaag is geselecteerd', q(`[data-day="${TODAY}"]`)?.classList.contains('is-selected') === true);
+check('kalenderbadge telt de uploads van deze maand', q('#calBadge').textContent === String(thisMonthCount), `${q('#calBadge').textContent} vs ${thisMonthCount}`);
+check('gemarkeerde dagen kloppen', qa('#calGrid .cal-cell.has-uploads').length === uploadDaysThisMonth, `${qa('#calGrid .cal-cell.has-uploads').length} vs ${uploadDaysThisMonth}`);
+check('de lijst is gefilterd op vandaag', qa('#filesList .item').length === todayCount, `${qa('#filesList .item').length} vs ${todayCount}`);
+check('filterlabel noemt de dag', q('#filesFilter').textContent.toLowerCase().includes(todayLabel), q('#filesFilter').textContent);
+
+/* ---------- andere dag kiezen filtert de lijst ---------- */
+
+await click(q('#calPrev'));
+check('vorige maand in de titel', q('#calTitle').textContent !== monthName, q('#calTitle').textContent);
+check('kalenderbadge volgt de maand', q('#calBadge').textContent === '1', q('#calBadge').textContent);
+await click(q(`[data-day="${PREV_MONTH_KEY}"]`));
+check('gekozen dag filtert de bestandenlijst', qa('#filesList .item').length === 1, `${qa('#filesList .item').length} items`);
+check('de lijst toont het bestand van die dag', qa('#filesList .item-name')[0].textContent === 'backup.zip');
+check('de badge telt de gefilterde bestanden', q('#filesCount').textContent === '1', q('#filesCount').textContent);
+check('selectie staat op de gekozen dag', q(`[data-day="${PREV_MONTH_KEY}"]`).classList.contains('is-selected'));
+
+/* ---------- "Alles tonen" wist het filter ---------- */
+
+await click(q('#showAllBtn'));
+check('alles tonen toont alle bestanden', qa('#filesList .item').length === 4, `${qa('#filesList .item').length} items`);
+check('filterlabel zegt "Alle bestanden"', q('#filesFilter').textContent === 'Alle bestanden', q('#filesFilter').textContent);
+check('geen dag meer geselecteerd', qa('#calGrid .cal-cell.is-selected').length === 0);
+check('badge toont alle bestanden', q('#filesCount').textContent === '4');
+
+/* ---------- opnieuw een dag kiezen (vandaag) ---------- */
+
+await click(q('#calNext'));
+await click(q(`[data-day="${TODAY}"]`));
+check('opnieuw filteren op vandaag werkt', qa('#filesList .item').length === todayCount, `${qa('#filesList .item').length} vs ${todayCount}`);
+check('filterlabel terug naar de dag', q('#filesFilter').textContent !== 'Alle bestanden', q('#filesFilter').textContent);
 
 /* ---------- bestandenlijst + thumbnails ---------- */
 
-check('lijst toont alle bestanden', qa('#filesList .item').length === 4, `${qa('#filesList .item').length} items`);
-check('badge toont aantal bestanden', q('#filesCount').textContent === '4', q('#filesCount').textContent);
+await click(q('#showAllBtn'));
 check('afbeelding en pdf krijgen een thumbnail-img', qa('#filesList .thumb-img').length === 2, `${qa('#filesList .thumb-img').length} thumbs`);
 check(
   'thumbnail-url wijst naar het bestand',
@@ -123,36 +179,6 @@ check('sluiten verbergt de voorvertoning', q('#lightbox').hidden === true);
 await click(q('#filesList [data-preview-file="f1"]'));
 await key(doc.body, 'Escape');
 check('Escape sluit de voorvertoning', q('#lightbox').hidden === true);
-
-/* ---------- kalender ---------- */
-
-check('maandtitel volgt de nieuwste upload', q('#calTitle').textContent === 'november 2026', q('#calTitle').textContent);
-check('kalenderbadge telt de uploads van de maand', q('#calBadge').textContent === '3', q('#calBadge').textContent);
-
-const uploadCells = qa('#calGrid .cal-cell.has-uploads');
-check('twee dagen zijn gemarkeerd in november', uploadCells.length === 2, `${uploadCells.length} cellen`);
-check('de dag met twee uploads toont een telling', q('[data-day="2026-11-18"] .cal-count')?.textContent === '2');
-check('nieuwste uploaddag is standaard geselecteerd', q('[data-day="2026-11-18"]').classList.contains('is-selected'));
-check('daglijst toont de bestanden van de geselecteerde dag', qa('#dayFilesList .item').length === 2, `${qa('#dayFilesList .item').length} items`);
-check('daglijst heeft thumbnails', qa('#dayFilesList .thumb-img').length === 2);
-check('dagtitel noemt de dag en het aantal', q('#calDayTitle').textContent.includes('18 november 2026'), q('#calDayTitle').textContent);
-
-await click(q('[data-day="2026-11-02"]'));
-check('andere dag wijzigt de daglijst', qa('#dayFilesList .item').length === 1, `${qa('#dayFilesList .item').length} items`);
-check('daglijst toont het bestand van die dag', qa('#dayFilesList .item-name')[0].textContent === 'notities.txt');
-check('selectie is verplaatst', q('[data-day="2026-11-02"]').classList.contains('is-selected'));
-check('de bestandenlijst blijft intussen volledig', qa('#filesList .item').length === 4);
-
-await click(q('[data-day="2026-11-05"]'));
-check('dag zonder uploads geeft lege daglijst', qa('#dayFilesList .item').length === 0);
-check('lege-dagmelding is zichtbaar', q('#dayFilesEmpty').classList.contains('hidden') === false);
-
-await click(q('#calPrev'));
-check('vorige maand in de titel', q('#calTitle').textContent === 'oktober 2026', q('#calTitle').textContent);
-check('oktober toont de uploaddag van 15-10', qa('#calGrid .cal-cell.has-uploads').length === 1);
-check('kalenderbadge volgt de maand', q('#calBadge').textContent === '1', q('#calBadge').textContent);
-await click(q('#calNext'));
-check('volgende maand terug naar november', q('#calTitle').textContent === 'november 2026');
 
 /* ---------- snippets ---------- */
 
