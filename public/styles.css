@@ -62,7 +62,7 @@ body {
   flex: 1;
   min-width: 0;
   max-width: 28rem;
-  margin-left: auto;
+  margin-left: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -70,6 +70,11 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* de knop 'Alles wissen' staat direct links naast de schijfruimte */
+.header #deleteAllBtn {
+  margin-left: auto;
 }
 
 .storage-line {
