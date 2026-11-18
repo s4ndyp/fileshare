@@ -22,6 +22,14 @@
           <p class="subtitle">Bestanden en tekst delen tussen je apparaten</p>
         </div>
       </div>
+      <button
+        type="button"
+        class="btn btn-ghost btn-ghost-danger"
+        id="deleteAllBtn"
+        title="Alle bestanden van alle datums verwijderen"
+      >
+        Alles wissen
+      </button>
       <div class="storage-widget" id="storageWidget" title="Schijfruimte server">
         <div class="storage-line">
           <span class="storage-free" id="storageFree">— vrij</span>
@@ -177,10 +185,25 @@
       </figure>
     </div>
 
+    <div class="modal" id="deleteAllModal" hidden>
+      <div class="modal-backdrop" data-deleteall-close></div>
+      <div class="modal-box modal-box-sm" role="dialog" aria-modal="true" aria-labelledby="deleteAllTitle">
+        <div class="modal-head">
+          <h3 id="deleteAllTitle">Alles wissen</h3>
+          <button type="button" class="btn btn-ghost btn-sm" data-deleteall-close>Sluiten</button>
+        </div>
+        <p class="modal-text-plain" id="deleteAllText"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-sm btn-outline" data-deleteall-close>Annuleren</button>
+          <button type="button" class="btn btn-sm btn-danger" id="deleteAllConfirm">Ja, alles wissen</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="footer">
       <span>Data blijft op deze server staan tot je ze verwijdert of na download (indien gekozen).</span>
     </footer>
 
-    <script src="/app.js?v=5" type="module"></script>
+    <script src="/app.js?v=6" type="module"></script>
   </body>
 </html>

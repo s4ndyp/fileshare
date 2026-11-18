@@ -352,6 +352,16 @@ app.delete('/api/files/:id', (req, res) => {
   res.status(204).end();
 });
 
+// Alles in één keer opruimen: alle bestanden van alle datums (incl. thumbnails).
+app.delete('/api/files', (_req, res) => {
+  const rows = db.prepare('SELECT id FROM files').all();
+  let deleted = 0;
+  for (const row of rows) {
+    if (deleteFileRecord(row.id)) deleted++;
+  }
+  res.json({ deleted });
+});
+
 app.get('/api/texts', (_req, res) => {
   const rows = db
     .prepare('SELECT * FROM texts ORDER BY created_at DESC')

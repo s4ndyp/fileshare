@@ -72,6 +72,10 @@ const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightboxImg');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDownload = document.getElementById('lightboxDownload');
+const deleteAllBtn = document.getElementById('deleteAllBtn');
+const deleteAllModal = document.getElementById('deleteAllModal');
+const deleteAllText = document.getElementById('deleteAllText');
+const deleteAllConfirm = document.getElementById('deleteAllConfirm');
 const refreshBtn = document.getElementById('refreshBtn');
 const storageFill = document.getElementById('storageFill');
 const storageFree = document.getElementById('storageFree');
@@ -505,6 +509,50 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!lightbox.hidden) closePreview();
   if (!snippetModal.hidden) closeSnippet();
+  if (!deleteAllModal.hidden) closeDeleteAll();
+});
+
+/* ---------- alles wissen (met extra bevestiging) ---------- */
+
+function openDeleteAll() {
+  const n = allFiles.length;
+  deleteAllText.textContent =
+    `Hiermee verwijder je alle ${n} bestand${n === 1 ? '' : 'en'} van alle datums — ` +
+    'ook wat buiten de huidige dag of maand valt. Dit kan niet ongedaan gemaakt worden.';
+  deleteAllConfirm.disabled = n === 0;
+  deleteAllModal.hidden = false;
+}
+
+function closeDeleteAll() {
+  deleteAllModal.hidden = true;
+}
+
+deleteAllBtn.addEventListener('click', () => {
+  if (!allFiles.length) {
+    showToast(uploadToast, 'Er zijn geen bestanden om te wissen', false);
+    return;
+  }
+  if (!confirm(`Alle ${allFiles.length} bestanden van alle datums verwijderen?`)) return;
+  openDeleteAll();
+});
+
+deleteAllModal.addEventListener('click', (e) => {
+  if (e.target.closest('[data-deleteall-close]')) closeDeleteAll();
+});
+
+deleteAllConfirm.addEventListener('click', async () => {
+  deleteAllConfirm.disabled = true;
+  try {
+    const res = await fetch('/api/files', { method: 'DELETE' });
+    const out = await res.json().catch(() => ({}));
+    closeDeleteAll();
+    showToast(uploadToast, `${out.deleted ?? 0} bestanden verwijderd`, true);
+    selectedDay = null;
+    await Promise.all([loadFiles(), loadStorage()]);
+  } catch {
+    deleteAllConfirm.disabled = false;
+    showToast(uploadToast, 'Wissen mislukt', false);
+  }
 });
 
 snippetCopyBtn.addEventListener('click', async () => {
