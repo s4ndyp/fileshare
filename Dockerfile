@@ -17,7 +17,7 @@ ENV NODE_ENV=production
 ENV DATA_DIR=/data
 ENV PORT=3000
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini \
+RUN apt-get update && apt-get install -y --no-install-recommends tini poppler-utils \
   && rm -rf /var/lib/apt/lists/* \
   && useradd -r -u 10001 -m appuser
 

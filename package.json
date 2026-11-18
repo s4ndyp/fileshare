@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "test": "node tests/ui-test.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -15,6 +16,10 @@
     "archiver": "^7.0.1",
     "better-sqlite3": "^11.7.0",
     "express": "^4.21.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
   }
 }

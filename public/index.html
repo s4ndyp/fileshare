@@ -88,8 +88,53 @@
           <h2 id="files-heading">Gedeelde bestanden</h2>
           <span class="badge" id="filesCount">0</span>
         </div>
-        <ul class="item-list" id="filesList"></ul>
-        <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
+
+        <div class="view-switch" role="tablist" aria-label="Weergave van de bestanden">
+          <button
+            type="button"
+            class="view-btn is-active"
+            id="viewListBtn"
+            data-view="list"
+            role="tab"
+            aria-selected="true"
+          >
+            ☰ Lijst
+          </button>
+          <button
+            type="button"
+            class="view-btn"
+            id="viewCalBtn"
+            data-view="calendar"
+            role="tab"
+            aria-selected="false"
+          >
+            ▦ Kalender
+          </button>
+        </div>
+
+        <div id="listView">
+          <ul class="item-list" id="filesList"></ul>
+          <p class="empty" id="filesEmpty">Nog geen bestanden. Upload iets op een ander apparaat.</p>
+        </div>
+
+        <div id="calendarView" hidden>
+          <div class="calendar">
+            <div class="cal-head">
+              <button type="button" class="btn btn-ghost btn-sm" id="calPrev" aria-label="Vorige maand">‹</button>
+              <span class="cal-title" id="calTitle">—</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="calNext" aria-label="Volgende maand">›</button>
+            </div>
+            <div class="cal-dow-row" aria-hidden="true">
+              <span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span>
+            </div>
+            <div class="cal-grid" id="calGrid" role="grid" aria-label="Uploads per dag"></div>
+          </div>
+          <div class="cal-day">
+            <p class="cal-day-title" id="calDayTitle">Kies een dag met uploads</p>
+            <ul class="item-list" id="dayFilesList"></ul>
+            <p class="empty" id="dayFilesEmpty">Geen uploads op deze dag.</p>
+          </div>
+        </div>
       </section>
 
       <section class="card card-wide" aria-labelledby="text-heading">
@@ -113,6 +158,6 @@
       <span>Data blijft op deze server staan tot je ze verwijdert of na download (indien gekozen).</span>
     </footer>
 
-    <script src="/app.js?v=2" type="module"></script>
+    <script src="/app.js?v=3" type="module"></script>
   </body>
 </html>
